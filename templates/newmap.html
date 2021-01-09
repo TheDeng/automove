@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>地图</title>
+    <script src="../static/js/vue.js"></script>
+	<link rel="stylesheet" href="../static/js/leaflet/leaflet.css" />
+	<script src="../static/js/leaflet/leaflet.js"></script>
+    <link rel="stylesheet" type="text/css" href="../static/ui/themes/default/easyui.css">
+    <link  rel="stylesheet" type="text/css" href="../static/ui/themes/icon.css">
+    <script src="../static/ui/jquery.min.js"></script>
+    <script src="../static/ui/jquery.easyui.min.js"></script>
+	<style type="text/css">
+		#mymap{
+			height: 1500px;
+            width: 1500px;
+            margin:0 auto;
+		}
+        .operator{
+              width: 700px;
+              margin:15px auto;
+              text-align: center;
+
+        }
+		.grid{
+			margin: 0 auto;
+		}
+        .outer{
+            width: 1500px;
+            height: 850px;
+        }
+
+	</style>
+	
+</head>
+<body onload="load()">
+  <div id="mymap"></div>
+
+  </body>
+	
+	
+
+
+
+	
+	<script type="text/javascript">
+		var mymap=L.map('mymap').setView([-37.820,144.965],16);
+		var markers=[]
+		var interval=null
+		function load(){
+		    let accessToken='pk.eyJ1IjoidGhlZGVuZyIsImEiOiJja2dyajk2cDUwZnAzMnFxdzEzY2l3azYxIn0.9BJL_f9G2JWxCGJGJDUkNA'
+			{#L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {#}
+			{#    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',#}
+			{#    maxZoom: 18,#}
+			{#    id: 'mapbox.streets',#}
+			{#    accessToken: accessToken,#}
+
+			{#).addTo(mymap);#}
+		    L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+                maxZoom: 18,
+                id: 'mapbox/streets-v11',
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: accessToken,
+            }).addTo(mymap);
+			
+			$.ajax({
+				url:"/load/",
+				type:'get',
+				success:function (res) {
+				    user_list=res.userlist
+                    server_list=res.serverlist
+                    console.log(user_list)
+                    console.log(server_list)
+
+
+					for(let i=0;i<user_list.length;i++){
+						let mk=addUserMarker(user_list[i].coordinate)
+                        markers.push(mk)
+					}
+					 for(let k=0;k<server_list.length;k++){
+                            addServerMarker(server_list[k].coordinate,server_list[k].coverage)
+                    }
+					getUserStatus();
+					getServerStatus();
+					
+					
+
+                },
+				error:function (err){
+					console.log(err)
+				},
+				
+			})
+
+
+		}
+		function getUserStatus(){
+			$('#user_status').datagrid({
+			    url:'/get_user_status/',
+				loadMsg:'',
+			    columns:[[
+					{field:'id',title:'序号',width:40,align:'left'},
+					{field:'position',title:'位置',width:150,align:'center'},
+					{field:'request',title:'请求',width:90,align:'center'},
+					{field:'op_server',title:'可选',width:95,align:'center'},
+					{field:'selected_server',title:'实选',width:55,align:'left'},
+			    ]]
+			});
+		}
+		function getServerStatus(){
+			
+			$('#server_status').datagrid({
+			    url:'/get_server_status/',
+				loadMsg:'',
+			    columns:[[
+					{field:'id',title:'序号',width:40,align:'left'},
+					{field:'position',title:'位置',width:150,align:'center'},
+					{field:'capacity',title:'资源',width:110,align:'center'},
+					{field:'held_user',title:'用户',width:75,align:'center'},
+					{field:'coverage',title:'半径',width:55,align:'left'},
+			    ]]
+			});
+		}
+		function addServerMarker(coordinate,coverage) {
+           var circle = L.circle(coordinate,{
+					color: 'red',
+				    fillColor: '',
+				    fillOpacity: 0.1,
+				    radius: coverage
+			}).addTo(mymap);
+			return circle;
+
+        }
+
+		function addUserMarker(coordinate){
+			var circle = L.circle(coordinate,{
+					color: 'blue',
+				    fillColor: '',
+				    fillOpacity: 0.8,
+				    radius: 20
+			}).addTo(mymap);
+			return circle;
+		}
+		function move() {
+            interval=setInterval(update,1000)
+        }
+        function stop() {
+
+            clearInterval(interval)
+			$.ajax({
+				url:"/generate_data/",
+				type:'get',
+				error:function (err){
+					console.log(err)
+				}
+			})
+			
+        }
+        function update() {
+            $.ajax({
+				url:"/move/",
+				type:'get',
+				success:function (res) {
+                    console.log(res)
+					for(let i=0;i<res.length;i++){
+						let mk=markers[i]
+                        let coordinate=res[i].coordinate
+                        mk.setLatLng(coordinate)
+
+					}
+					$('#user_status').datagrid('reload');
+					$('#server_status').datagrid('reload');
+					
+                },
+				error:function (err){
+					console.log(err)
+				},
+
+			})
+
+        }
+
+
+	</script>
+</body>
+</html>
